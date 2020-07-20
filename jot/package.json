@@ -1,0 +1,24 @@
+{
+  "name": "jot",
+  "version": "0.0.1",
+  "description": "JSON Operational Transformation",
+  "dependencies": {
+    "deep-equal": "^2.0.3",
+    "diff": "^4.0.2",
+    "generic-diff": "*",
+    "jsonpatch": "*",
+    "shallow-clone": "^3.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/joshdata/jot.git"
+  },
+  "author": "Joshua Tauberer",
+  "scripts": {
+    "test": "tap --cov tests/*.js"
+  },
+  "devDependencies": {
+    "connect": "*",
+    "tap": "^14.10.7"
+  }
+}
