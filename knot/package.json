@@ -1,0 +1,29 @@
+{
+  "name": "knot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dooyou21/knot.git"
+  },
+  "keywords": [
+    "operational transformation",
+    "ot"
+  ],
+  "author": "dooyou21<cubeclock94@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dooyou21/knot/issues"
+  },
+  "homepage": "https://github.com/dooyou21/knot#readme",
+  "devDependencies": {
+    "@types/node": "^14.0.23",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.7"
+  }
+}
