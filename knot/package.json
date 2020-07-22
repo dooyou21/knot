@@ -25,5 +25,10 @@
     "@types/node": "^14.0.23",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.7"
+  },
+  "dependencies": {
+    "deep-equal": "^2.0.3",
+    "jsonpatch": "^3.0.1",
+    "shallow-clone": "^3.0.1"
   }
 }
