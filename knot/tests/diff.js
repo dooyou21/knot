@@ -1,8 +1,8 @@
 var test = require('tap').test;
-var jot = require('../jot')
-var diff = require("../jot/diff.js");
+var jot = require('../knot')
+var diff = require("../knot/diff.js");
 
-test('diff', function(t) {
+test('diff', function (t) {
 
 	function test(a, b, options) {
 		var op = diff.diff(a, b, options);
@@ -12,7 +12,7 @@ test('diff', function(t) {
 
 	// values (these just turn into SET operations)
 
-	test(5, { });
+	test(5, {});
 
 	// strings
 
@@ -35,5 +35,5 @@ test('diff', function(t) {
 
 	test({ "a": ["Hello!", ["Goodbye!"]] }, { "b": ["Hola!", ["Adios!"]] }, { words: true });
 
-    t.end();
+	t.end();
 });

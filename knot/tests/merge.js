@@ -1,8 +1,8 @@
 const test = require('tap').test;
-const jot = require('../jot')
-const merge = require("../jot/merge.js");
+const jot = require('../knot')
+const merge = require("../knot/merge.js");
 
-test('merge', function(t) {
+test('merge', function (t) {
   t.deepEqual(
     merge.merge(
       'source',
@@ -118,7 +118,7 @@ test('merge', function(t) {
 
     let b = root.branch();
     b.commit("Goodbye world.");
-    
+
     test_merge(a, b, "Hello world.")
   }
 
@@ -132,7 +132,7 @@ test('merge', function(t) {
     let b = root.branch();
     b.commit("Goodbye world.");
     b.commit("Goodbye world of mine.");
-    
+
     test_merge(a, b, "Goodbye cruel world of mine.")
     test_merge(a, b, "Goodbye cruel world of mine.") // testing that repeat does nothing
 
@@ -152,7 +152,7 @@ test('merge', function(t) {
     // in http://blog.plasticscm.com/2011/09/merge-recursive-strategy.html.
 
     let a = new merge.Document();
-    
+
     a.commit("10");
 
     let b = a.branch();
@@ -175,7 +175,7 @@ test('merge', function(t) {
     // in http://blog.plasticscm.com/2011/09/merge-recursive-strategy.html.
 
     let a = new merge.Document();
-    
+
     a.commit("bcd");
 
     let b = a.branch();
