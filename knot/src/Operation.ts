@@ -11,6 +11,7 @@ export abstract class Operation {
   
   protected rebase_functions;
   
+  abstract internalToJSON(first, second);
   abstract atomic_compose(other);
   abstract inspect();
   
@@ -122,8 +123,8 @@ export abstract class Operation {
     return this.opFromJSON(JSON.parse(op_json));
   }
   
-  compose(other, no_list) {
-    if (!(other instanceof exports.Operation))
+  compose(other: Operation, no_list) {
+    if (!(other instanceof Operation))
       throw new Error("Argument must be an operation.");
     
     // A NO_OP composed with anything just gives the other thing.
