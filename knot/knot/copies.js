@@ -10,10 +10,8 @@
 	*/
 
 import util from 'util';
-
+import { JSONPointer } from 'jsonpatch';
 var jot = require("./index.js");
-
-var JSONPointer = require('jsonpatch').JSONPointer;
 
 exports.module_name = 'copies'; // for serialization/deserialization
 
