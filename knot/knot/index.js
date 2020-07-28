@@ -5,7 +5,14 @@ import clone from 'lodash/clone';
 
 // Must define this ahead of any imports below so that this constructor
 // is available to the operation classes.
-exports.Operation = function () {};
+export const Operation = function () {};
+exports.Operation = Operation;
+export function add_op(constructor, module, opname) {
+  // utility.
+  constructor.prototype.type = [module.module_name, opname];
+  if (!('op_map' in module)) module['op_map'] = {};
+  module['op_map'][opname] = constructor;
+}
 exports.add_op = function (constructor, module, opname) {
   // utility.
   constructor.prototype.type = [module.module_name, opname];
@@ -19,6 +26,23 @@ var sequences = require('./sequences.js');
 var objects = require('./objects.js');
 var lists = require('./lists.js');
 var copies = require('./copies.js');
+// import COPY from './copies';
+
+// const knot = {
+//   NO_OP: values.NO_OP,
+//   SET: values.SET,
+//   MATH: values.MATH,
+//   PATCH: sequences.PATCH,
+//   SPLICE: sequences.SPLICE,
+//   ATINDEX: sequences.ATINDEX,
+//   MAP: sequences.MAP,
+//   PUT: objects.PUT,
+//   REM: objects.REM,
+//   APPLY: objects.APPLY,
+//   LIST: lists.LIST,
+//   COPY: copies.COPY,
+// };
+// export knot;
 
 exports.NO_OP = values.NO_OP;
 exports.SET = values.SET;
