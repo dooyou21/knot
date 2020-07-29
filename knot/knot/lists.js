@@ -9,26 +9,26 @@
 import util from 'util';
 import clone from 'lodash/clone';
 
-var jot = require('./index.js');
-var values = require('./values.js');
+import { Operation, add_op, opFromJSON, createRandomOp } from './index';
+import { NO_OP } from './values';
 
 exports.module_name = 'lists'; // for serialization/deserialization
 
-exports.LIST = function (ops) {
+export function LIST(ops) {
   if (!Array.isArray(ops)) throw new Error('Argument must be an array.');
   ops.forEach(function (op) {
-    if (!(op instanceof jot.Operation))
+    if (!(op instanceof Operation))
       throw new Error(
         'Argument must be an array containing operations (found ' + op + ').',
       );
   });
   this.ops = ops; // TODO: How to ensure this array is immutable?
   Object.freeze(this);
-};
-exports.LIST.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(exports.LIST, exports, 'LIST');
+}
+LIST.prototype = Object.create(Operation.prototype); // inherit
+add_op(LIST, exports, 'LIST');
 
-exports.LIST.prototype.inspect = function (depth) {
+LIST.prototype.inspect = function (depth) {
   return util.format(
     '<LIST [%s]>',
     this.ops
@@ -39,12 +39,12 @@ exports.LIST.prototype.inspect = function (depth) {
   );
 };
 
-exports.LIST.prototype.visit = function (visitor) {
+LIST.prototype.visit = function (visitor) {
   // A simple visitor paradigm. Replace this operation instance itself
   // and any operation within it with the value returned by calling
   // visitor on itself, or if the visitor returns anything falsey
   // (probably undefined) then return the operation unchanged.
-  var ret = new exports.LIST(
+  var ret = new LIST(
     this.ops.map(function (op) {
       return op.visit(visitor);
     }),
@@ -52,27 +52,27 @@ exports.LIST.prototype.visit = function (visitor) {
   return visitor(ret) || ret;
 };
 
-exports.LIST.prototype.internalToJSON = function (json, protocol_version) {
+LIST.prototype.internalToJSON = function (json, protocol_version) {
   json.ops = this.ops.map(function (op) {
     return op.toJSON(undefined, protocol_version);
   });
 };
 
-exports.LIST.internalFromJSON = function (json, protocol_version, op_map) {
+LIST.internalFromJSON = function (json, protocol_version, op_map) {
   var ops = json.ops.map(function (op) {
-    return jot.opFromJSON(op, protocol_version, op_map);
+    return opFromJSON(op, protocol_version, op_map);
   });
-  return new exports.LIST(ops);
+  return new LIST(ops);
 };
 
-exports.LIST.prototype.apply = function (document) {
+LIST.prototype.apply = function (document) {
   /* Applies the operation to a document.*/
   for (var i = 0; i < this.ops.length; i++)
     document = this.ops[i].apply(document);
   return document;
 };
 
-exports.LIST.prototype.simplify = function (aggressive) {
+LIST.prototype.simplify = function (aggressive) {
   /* Returns a new operation that is a simpler version
 	   of this operation. Composes consecutive operations where
 	   possible and removes no-ops. Returns NO_OP if the result
@@ -111,13 +111,13 @@ exports.LIST.prototype.simplify = function (aggressive) {
     new_ops.push(op);
   }
 
-  if (new_ops.length == 0) return new values.NO_OP();
+  if (new_ops.length == 0) return new NO_OP();
   if (new_ops.length == 1) return new_ops[0];
 
-  return new exports.LIST(new_ops);
+  return new LIST(new_ops);
 };
 
-exports.LIST.prototype.inverse = function (document) {
+LIST.prototype.inverse = function (document) {
   /* Returns a new atomic operation that is the inverse of this operation:
 	   the inverse of each operation in reverse order. */
   var new_ops = [];
@@ -126,10 +126,10 @@ exports.LIST.prototype.inverse = function (document) {
     document = op.apply(document);
   });
   new_ops.reverse();
-  return new exports.LIST(new_ops);
+  return new LIST(new_ops);
 };
 
-exports.LIST.prototype.atomic_compose = function (other) {
+LIST.prototype.atomic_compose = function (other) {
   /* Returns a LIST operation that has the same result as this
 	   and other applied in sequence (this first, other after). */
 
@@ -137,20 +137,20 @@ exports.LIST.prototype.atomic_compose = function (other) {
   if (this.ops.length == 0) return other;
 
   // the next operation is an empty list, so the composition is just this
-  if (other instanceof exports.LIST) {
+  if (other instanceof LIST) {
     if (other.ops.length == 0) return this;
 
     // concatenate
-    return new exports.LIST(this.ops.concat(other.ops));
+    return new LIST(this.ops.concat(other.ops));
   }
 
   // append
   var new_ops = this.ops.slice(); // clone
   new_ops.push(other);
-  return new exports.LIST(new_ops);
+  return new LIST(new_ops);
 };
 
-exports.rebase = function (base, ops, conflictless, debug) {
+export const rebase = function (base, ops, conflictless, debug) {
   // Ensure the operations are simplified, since rebase
   // is much more expensive than simplified.
 
@@ -160,10 +160,10 @@ exports.rebase = function (base, ops, conflictless, debug) {
   // Turn each argument into an array of operations.
   // If an argument is a LIST, unwrap it.
 
-  if (base instanceof exports.LIST) base = base.ops;
+  if (base instanceof LIST) base = base.ops;
   else base = [base];
 
-  if (ops instanceof exports.LIST) ops = ops.ops;
+  if (ops instanceof LIST) ops = ops.ops;
   else ops = [ops];
 
   // Run the rebase algorithm.
@@ -174,13 +174,13 @@ exports.rebase = function (base, ops, conflictless, debug) {
   if (ret == null) return null;
 
   // ...or yielded no operations --- turn it into a NO_OP operation.
-  if (ret.length == 0) return new values.NO_OP();
+  if (ret.length == 0) return new NO_OP();
 
   // ...or yielded a single operation --- return it.
   if (ret.length == 1) return ret[0];
 
   // ...or yielded a list of operations --- re-wrap it in a LIST operation.
-  return new exports.LIST(ret).simplify();
+  return new LIST(ret).simplify();
 };
 
 function rebase_array(base, ops, conflictless, debug) {
@@ -235,8 +235,8 @@ function rebase_array(base, ops, conflictless, debug) {
     // operation. Wrap the result in an array.
     var op = ops[0].rebase(base[0], conflictless, debug);
     if (!op) return null; // conflict
-    if (op instanceof jot.NO_OP) return [];
-    if (op instanceof jot.LIST) return op.ops;
+    if (op instanceof NO_OP) return [];
+    if (op instanceof LIST) return op.ops;
     return [op];
   }
 
@@ -262,7 +262,7 @@ function rebase_array(base, ops, conflictless, debug) {
     // Rebase more than one operation (ops) against a single operation (base[0]).
 
     // Nothing to do if it is a no-op.
-    if (base[0] instanceof values.NO_OP) return ops;
+    if (base[0] instanceof NO_OP) return ops;
 
     // The result is the first operation in ops rebased against the base concatenated with
     // the remainder of ops rebased against the-base-rebased-against-the-first-operation:
@@ -315,8 +315,8 @@ function rebase_array(base, ops, conflictless, debug) {
   }
 }
 
-exports.LIST.prototype.drilldown = function (index_or_key) {
-  return new exports.LIST(
+LIST.prototype.drilldown = function (index_or_key) {
+  return new LIST(
     this.ops.map(function (op) {
       return op.drilldown(index_or_key);
     }),
@@ -327,8 +327,8 @@ exports.createRandomOp = function (doc, context) {
   // Create a random LIST that could apply to doc.
   var ops = [];
   while (ops.length == 0 || Math.random() < 0.75) {
-    ops.push(jot.createRandomOp(doc, context));
+    ops.push(createRandomOp(doc, context));
     doc = ops[ops.length - 1].apply(doc);
   }
-  return new exports.LIST(ops);
+  return new LIST(ops);
 };

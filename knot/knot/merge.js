@@ -8,7 +8,9 @@
 // target. In more complex operation graphs, we find the least common ancestor
 // (i.e. the nearest common ancestor) and then rebase around that.
 
-const jot = require("./index.js");
+import { Operation } from './index';
+import { LIST } from './lists';
+import { diff } from './diff';
 
 function keys(obj) {
   // Get all of the own-keys of obj including string keys and symbols.
@@ -16,12 +18,11 @@ function keys(obj) {
 }
 
 function node_name_str(node) {
-  if (typeof node === "Symbol" && node.description)
-    return node.description;
+  if (typeof node === 'Symbol' && node.description) return node.description;
   return node.toString();
 }
 
-exports.merge = function(branch1, branch2, graph) {
+exports.merge = function (branch1, branch2, graph) {
   // 'graph' is an object whose keys are identifiers of nodes
   // 'branch1' and 'branch2' are keys in 'graph'
   // The values of 'graph' are objects of the form:
@@ -32,27 +33,25 @@ exports.merge = function(branch1, branch2, graph) {
   //   document: the document content at this node, required at least for
   //       root nodes, but can be set on any node
   // }
-  // 
+  //
   // This method returns an array of two operations: The first merges
   // branch2 into branch1 and the second merges branch1 into branch2.
 
   // Find the lowest common ancestor(s) of branch1 and branch2.
   var lca = lowest_common_ancestors(branch1, branch2, graph);
-  if (lca.length == 0)
-    throw "NO_COMMON_ANCESTOR";
+  if (lca.length == 0) throw 'NO_COMMON_ANCESTOR';
 
- function get_document_content_at(n) {
+  function get_document_content_at(n) {
     // Node n may have a 'document' key set. If not, get the content at its first parent
     // and apply its operations.
     let path = [];
-    while (typeof graph[n].document === "undefined") {
-      if (!graph[n].parents)
-        throw "ROOT_MISSING_DOCUMENT";
+    while (typeof graph[n].document === 'undefined') {
+      if (!graph[n].parents) throw 'ROOT_MISSING_DOCUMENT';
       path.unshift(graph[n].op[0]);
       n = graph[n].parents[0];
     }
     let document = graph[n].document;
-    path.forEach(op => document = op.apply(document));
+    path.forEach((op) => (document = op.apply(document)));
     return document;
   }
 
@@ -85,9 +84,9 @@ exports.merge = function(branch1, branch2, graph) {
     var node = Symbol(/*node_name_str(lca1.node) + "|" + node_name_str(lca2.node)*/);
     graph[node] = {
       parents: [lca1.node, lca2.node],
-      op: merge_ops
-    }
-    
+      op: merge_ops,
+    };
+
     let document1 = get_document_content_at(lca1.node);
 
     /*
@@ -96,13 +95,17 @@ exports.merge = function(branch1, branch2, graph) {
     console.log("against the merge commit's first operation");
     console.log("which is at", lca1.node, "document:", document1);
     */
-  
+
     lca.push({
       node: node,
       paths: {
-        [branch1]: lca1.paths[branch1].rebase(merge_ops[0], { document: document1 }),
-        [branch2]: lca1.paths[branch2].rebase(merge_ops[0], { document: document1 })
-      }
+        [branch1]: lca1.paths[branch1].rebase(merge_ops[0], {
+          document: document1,
+        }),
+        [branch2]: lca1.paths[branch2].rebase(merge_ops[0], {
+          document: document1,
+        }),
+      },
     });
 
     /*
@@ -131,11 +134,11 @@ exports.merge = function(branch1, branch2, graph) {
   // and 2) branch1 into branch2.
   let merge = [
     branch2_op.rebase(branch1_op, { document: document }),
-    branch1_op.rebase(branch2_op, { document: document })
+    branch1_op.rebase(branch2_op, { document: document }),
   ];
   //console.log("Merge:", merge[0].inspect(), merge[1].inspect());
   return merge;
-}
+};
 
 function lowest_common_ancestors(a, b, graph) {
   // Find the lowest common ancestors of a and b (i.e. an
@@ -146,26 +149,28 @@ function lowest_common_ancestors(a, b, graph) {
   // may be multiple paths to each of a and b.
   //
   // We do this by traversing the graph starting first at a and then at b.
-  let reach_paths = { };
-  let descendants = { };
-  let queue = [ // node  paths to a & b  descendant nodes
-                 [ a,    { [a]: [[]] },  {} ],
-                 [ b,    { [b]: [[]] },  {} ]];
+  let reach_paths = {};
+  let descendants = {};
+  let queue = [
+    // node  paths to a & b  descendant nodes
+    [a, { [a]: [[]] }, {}],
+    [b, { [b]: [[]] }, {}],
+  ];
   while (queue.length > 0) {
     // Pop an item from the queue.
     let [node, paths, descs] = queue.shift();
-    if (!graph.hasOwnProperty(node)) throw "Invalid node: " + node;
-    
+    if (!graph.hasOwnProperty(node)) throw 'Invalid node: ' + node;
+
     // Update its reach_paths flags.
-    if (!reach_paths.hasOwnProperty(node)) reach_paths[node] = { };
-    keys(paths).forEach(target => {
-      if (!reach_paths[node].hasOwnProperty(target)) reach_paths[node][target] = [ ];
-      paths[target].forEach(path =>
-        reach_paths[node][target].push(path))
+    if (!reach_paths.hasOwnProperty(node)) reach_paths[node] = {};
+    keys(paths).forEach((target) => {
+      if (!reach_paths[node].hasOwnProperty(target))
+        reach_paths[node][target] = [];
+      paths[target].forEach((path) => reach_paths[node][target].push(path));
     });
 
     // Update its descendants.
-    if (!descendants.hasOwnProperty(node)) descendants[node] = { };
+    if (!descendants.hasOwnProperty(node)) descendants[node] = {};
     Object.assign(descendants[node], descs);
 
     // Queue its parents, passing the reachability paths and descendants.
@@ -174,29 +179,28 @@ function lowest_common_ancestors(a, b, graph) {
     let de = { [node]: true };
     Object.assign(de, descs);
     (graph[node].parents || []).forEach((p, i) => {
-      let pa = { };
-      keys(paths).forEach(pkey => {
-        pa[pkey] = paths[pkey].map(path => [[node, i]].concat(path));
-      })
+      let pa = {};
+      keys(paths).forEach((pkey) => {
+        pa[pkey] = paths[pkey].map((path) => [[node, i]].concat(path));
+      });
 
-      queue.push([p, pa, de])
+      queue.push([p, pa, de]);
     });
   }
 
   // Take the common ancetors.
   var common_ancestors = keys(reach_paths).filter(
-    n => reach_paths[n].hasOwnProperty(a) && reach_paths[n].hasOwnProperty(b)
+    (n) => reach_paths[n].hasOwnProperty(a) && reach_paths[n].hasOwnProperty(b),
   );
 
   // Remove the common ancestors that have common ancestors as descendants.
   function object_contains_any(obj, elems) {
     for (let i = 0; i < elems.length; i++)
-      if (obj.hasOwnProperty(elems[i]))
-        return true;
+      if (obj.hasOwnProperty(elems[i])) return true;
     return false;
   }
   var lowest_common_ancestors = common_ancestors.filter(
-    n => !object_contains_any(descendants[n], common_ancestors)
+    (n) => !object_contains_any(descendants[n], common_ancestors),
   );
 
   // Return the lowest common ancestors and, for each, return an
@@ -207,23 +211,27 @@ function lowest_common_ancestors(a, b, graph) {
   // merges, there are multiple parents, and we need to get the operation
   // that represents the change from the *corresponding* parent.
   function get_paths_op(n) {
-    let paths = { };
-    keys(reach_paths[n]).forEach(target => {
+    let paths = {};
+    keys(reach_paths[n]).forEach((target) => {
       // There may be multiple paths from the ancestor to the target, but
       // we only need one. Take the first one. Maybe taking the shortest
       // will make better diffs in very complex scenarios?
       let path = reach_paths[n][target][0];
-      paths[target] = new jot.LIST(path.map(path_item => graph[path_item[0]].op[path_item[1]])).simplify();
+      paths[target] = new LIST(
+        path.map((path_item) => graph[path_item[0]].op[path_item[1]]),
+      ).simplify();
     });
     return paths;
   }
-  return lowest_common_ancestors.map(n => { return {
-    'node': n,
-    'paths': get_paths_op(n)
-  }});
+  return lowest_common_ancestors.map((n) => {
+    return {
+      node: n,
+      paths: get_paths_op(n),
+    };
+  });
 }
 
-exports.Revision = class {
+export class Revision {
   constructor(ops, parents, document) {
     this.ops = ops;
     this.parents = parents || [];
@@ -233,53 +241,53 @@ exports.Revision = class {
 
   add_to_graph(graph) {
     // Add the parents.
-    this.parents.forEach(p => p.add_to_graph(graph));
+    this.parents.forEach((p) => p.add_to_graph(graph));
 
     // Add this node.
     graph[this.id] = {
-      parents: this.parents.map(p => p.id),
+      parents: this.parents.map((p) => p.id),
       op: this.ops,
-      document: this.document
+      document: this.document,
     };
   }
 }
 
-exports.Document = class {
+export class Document {
   constructor(name) {
-    this.name = name || "";
-    this.history = [new exports.Revision(null, null, null, "singularity")];
+    this.name = name || '';
+    this.history = [new Revision(null, null, null, 'singularity')];
     this.commit_count = 0;
     this.branch_count = 0;
   }
 
   commit(op) {
-    if (!(op instanceof jot.Operation)) {
+    if (!(op instanceof Operation)) {
       // If 'op' is not an operation, it is document content. Do a diff
       // against the last content to make an operation.
-      op = jot.diff(this.content(), op);
+      op = diff(this.content(), op);
     }
 
-    let rev = new exports.Revision(
+    let rev = new Revision(
       [op],
       [this.head()],
       op.apply(this.content()),
-      (this.name||"") + "+" + (++this.commit_count)
+      (this.name || '') + '+' + ++this.commit_count,
     );
     this.history.push(rev);
     this.branch_count = 0;
     return rev;
   }
-  
+
   branch(name) {
-    let br = new exports.Document(
-        (this.name ? (this.name + "_") : "")
-      + (name || (++this.branch_count)));
+    let br = new Document(
+      (this.name ? this.name + '_' : '') + (name || ++this.branch_count),
+    );
     br.history = [].concat(this.history); // shallow clone
     return br;
   }
 
   head() {
-    return this.history[this.history.length-1];
+    return this.history[this.history.length - 1];
   }
 
   content() {
@@ -288,7 +296,7 @@ exports.Document = class {
 
   merge(b) {
     // Form a graph of the complete known history of the two branches.
-    let graph = { };
+    let graph = {};
     this.head().add_to_graph(graph);
     b.head().add_to_graph(graph);
 
@@ -297,12 +305,11 @@ exports.Document = class {
     let op = exports.merge(this.head().id, b.head().id, graph);
 
     // Make a commit on this branch that merges b into this.
-    let rev = this.commit(op[0])
+    let rev = this.commit(op[0]);
 
     // Add the second parent and the second merge operation.
     rev.parents.push(b.head());
     rev.ops.push(op[1]);
     return rev;
   }
-};
-
+}

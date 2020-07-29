@@ -26,7 +26,6 @@ var sequences = require('./sequences.js');
 var objects = require('./objects.js');
 var lists = require('./lists.js');
 var copies = require('./copies.js');
-// import COPY from './copies';
 
 // const knot = {
 //   NO_OP: values.NO_OP,
@@ -108,7 +107,7 @@ exports.Operation.prototype.toJSON = function (__key__, protocol_version) {
   return repr;
 };
 
-exports.opFromJSON = function (obj, protocol_version, op_map) {
+export const opFromJSON = function (obj, protocol_version, op_map) {
   // Sanity check.
   if (typeof obj !== 'object') throw new Error('Not an operation.');
 
@@ -166,7 +165,7 @@ exports.Operation.prototype.serialize = function () {
   // implicitly.
   return JSON.stringify(this);
 };
-exports.deserialize = function (op_json) {
+export const deserialize = function (op_json) {
   return exports.opFromJSON(JSON.parse(op_json));
 };
 
@@ -309,7 +308,7 @@ exports.Operation.prototype.rebase = function (other, conflictless, debug) {
   return null;
 };
 
-exports.createRandomValue = function (depth) {
+export const createRandomValue = function (depth) {
   var values = [];
 
   // null
@@ -350,7 +349,7 @@ exports.createRandomValue = function (depth) {
   return values[Math.floor(Math.random() * values.length)];
 };
 
-exports.createRandomOp = function (doc, context) {
+export const createRandomOp = function (doc, context) {
   // Creates a random operation that could apply to doc. Just
   // chain off to the modules that can handle the data type.
 
@@ -382,7 +381,7 @@ exports.createRandomOp = function (doc, context) {
   );
 };
 
-exports.createRandomOpSequence = function (value, count) {
+export const createRandomOpSequence = function (value, count) {
   // Create a random sequence of operations starting with a given value.
   var ops = [];
   while (ops.length < count) {
@@ -405,7 +404,7 @@ exports.createRandomOpSequence = function (value, count) {
   return new lists.LIST(ops);
 };
 
-exports.type_name = function (x) {
+export const type_name = function (x) {
   if (typeof x == 'object') {
     if (Array.isArray(x)) return 'array';
     return 'object';
@@ -415,7 +414,7 @@ exports.type_name = function (x) {
 
 // Utility function to compare values for the purposes of
 // setting sort orders that resolve conflicts.
-exports.cmp = function (a, b) {
+export const cmp = function (a, b) {
   // For objects.MISSING, make sure we try object identity.
   if (a === b) return 0;
 

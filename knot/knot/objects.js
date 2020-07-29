@@ -40,17 +40,21 @@
 
 import util from 'util';
 import deepEqual from 'lodash/isEqual';
+import {
+  add_op,
+  Operation,
+  createRandomOp,
+  createRandomValue,
+  opFromJSON,
+} from './index';
 import clone from 'lodash/clone';
-
-var jot = require('./index.js');
-var values = require('./values.js');
-var LIST = require('./lists.js').LIST;
+import { NO_OP, SET } from './values';
 
 //////////////////////////////////////////////////////////////////////////////
 
 exports.module_name = 'objects'; // for serialization/deserialization
 
-exports.APPLY = function () {
+export function APPLY() {
   if (arguments.length == 1 && typeof arguments[0] == 'object') {
     // Dict form.
     this.ops = arguments[0];
@@ -63,29 +67,29 @@ exports.APPLY = function () {
   }
   Object.freeze(this);
   Object.freeze(this.ops);
-};
-exports.APPLY.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(exports.APPLY, exports, 'APPLY');
+}
+APPLY.prototype = Object.create(Operation.prototype); // inherit
+add_op(APPLY, exports, 'APPLY');
 
 // The MISSING object is a sentinel to signal the state of an Object property
 // that does not exist. It is the old_value to SET when adding a new property
 // and the value when removing a property.
-exports.MISSING = new Object();
-Object.freeze(exports.MISSING);
+export const MISSING = new Object();
+Object.freeze(MISSING);
 
-exports.PUT = function (key, value) {
-  exports.APPLY.apply(this, [key, new values.SET(value)]);
-};
-exports.PUT.prototype = Object.create(exports.APPLY.prototype); // inherit prototype
+export function PUT(key, value) {
+  APPLY.apply(this, [key, new SET(value)]);
+}
+PUT.prototype = Object.create(APPLY.prototype); // inherit prototype
 
-exports.REM = function (key) {
-  exports.APPLY.apply(this, [key, new values.SET(exports.MISSING)]);
-};
-exports.REM.prototype = Object.create(exports.APPLY.prototype); // inherit prototype
+export function REM(key) {
+  APPLY.apply(this, [key, new SET(MISSING)]);
+}
+REM.prototype = Object.create(APPLY.prototype); // inherit prototype
 
 //////////////////////////////////////////////////////////////////////////////
 
-exports.APPLY.prototype.inspect = function (depth) {
+APPLY.prototype.inspect = function (depth) {
   var inner = [];
   var ops = this.ops;
   Object.keys(ops).forEach(function (key) {
@@ -94,31 +98,31 @@ exports.APPLY.prototype.inspect = function (depth) {
   return util.format('<APPLY %s>', inner.join(', '));
 };
 
-exports.APPLY.prototype.visit = function (visitor) {
+APPLY.prototype.visit = function (visitor) {
   // A simple visitor paradigm. Replace this operation instance itself
   // and any operation within it with the value returned by calling
   // visitor on itself, or if the visitor returns anything falsey
   // (probably undefined) then return the operation unchanged.
   var ops = {};
   for (var key in this.ops) ops[key] = this.ops[key].visit(visitor);
-  var ret = new exports.APPLY(ops);
+  var ret = new APPLY(ops);
   return visitor(ret) || ret;
 };
 
-exports.APPLY.prototype.internalToJSON = function (json, protocol_version) {
+APPLY.prototype.internalToJSON = function (json, protocol_version) {
   json.ops = {};
   for (var key in this.ops)
     json.ops[key] = this.ops[key].toJSON(undefined, protocol_version);
 };
 
-exports.APPLY.internalFromJSON = function (json, protocol_version, op_map) {
+APPLY.internalFromJSON = function (json, protocol_version, op_map) {
   var ops = {};
   for (var key in json.ops)
-    ops[key] = jot.opFromJSON(json.ops[key], protocol_version, op_map);
-  return new exports.APPLY(ops);
+    ops[key] = opFromJSON(json.ops[key], protocol_version, op_map);
+  return new APPLY(ops);
 };
 
-exports.APPLY.prototype.apply = function (document) {
+APPLY.prototype.apply = function (document) {
   /* Applies the operation to a document. Returns a new object that is
 	   the same type as document but with the change made. */
 
@@ -131,14 +135,14 @@ exports.APPLY.prototype.apply = function (document) {
   // value.
   for (var key in this.ops) {
     var value = this.ops[key].apply(d[key], [d, key]);
-    if (value === exports.MISSING) delete d[key];
+    if (value === MISSING) delete d[key];
     // key was removed
     else d[key] = value;
   }
   return d;
 };
 
-exports.APPLY.prototype.simplify = function () {
+APPLY.prototype.simplify = function () {
   /* Returns a new atomic operation that is a simpler version
 	   of this operation. If there is no sub-operation that is
 	   not a NO_OP, then return a NO_OP. Otherwise, simplify all
@@ -147,35 +151,35 @@ exports.APPLY.prototype.simplify = function () {
   var had_non_noop = false;
   for (var key in this.ops) {
     new_ops[key] = this.ops[key].simplify();
-    if (!(new_ops[key] instanceof values.NO_OP))
+    if (!(new_ops[key] instanceof NO_OP))
       // Remember that we have a substantive operation.
       had_non_noop = true;
     // Drop internal NO_OPs.
     else delete new_ops[key];
   }
-  if (!had_non_noop) return new values.NO_OP();
-  return new exports.APPLY(new_ops);
+  if (!had_non_noop) return new NO_OP();
+  return new APPLY(new_ops);
 };
 
-exports.APPLY.prototype.inverse = function (document) {
+APPLY.prototype.inverse = function (document) {
   /* Returns a new atomic operation that is the inverse of this operation,
 	   given the state of the document before this operation applies. */
   var new_ops = {};
   for (var key in this.ops) {
     new_ops[key] = this.ops[key].inverse(
-      key in document ? document[key] : exports.MISSING,
+      key in document ? document[key] : MISSING,
     );
   }
-  return new exports.APPLY(new_ops);
+  return new APPLY(new_ops);
 };
 
-exports.APPLY.prototype.atomic_compose = function (other) {
+APPLY.prototype.atomic_compose = function (other) {
   /* Creates a new atomic operation that has the same result as this
 	   and other applied in sequence (this first, other after). Returns
 	   null if no atomic operation is possible. */
 
   // two APPLYs
-  if (other instanceof exports.APPLY) {
+  if (other instanceof APPLY) {
     // Start with a clone of this operation's suboperations.
     var new_ops = clone(this.ops);
 
@@ -192,21 +196,21 @@ exports.APPLY.prototype.atomic_compose = function (other) {
 
         // They composed to a no-op, so delete the
         // first operation.
-        if (op2 instanceof values.NO_OP) delete new_ops[key];
+        if (op2 instanceof NO_OP) delete new_ops[key];
         else new_ops[key] = op2;
       }
     }
 
-    return new exports.APPLY(new_ops).simplify();
+    return new APPLY(new_ops).simplify();
   }
 
   // No composition possible.
   return null;
 };
 
-exports.APPLY.prototype.rebase_functions = [
+APPLY.prototype.rebase_functions = [
   [
-    exports.APPLY,
+    APPLY,
     function (other, conflictless) {
       // Rebase the sub-operations on corresponding keys.
       // If any rebase fails, the whole rebase fails.
@@ -220,7 +224,7 @@ exports.APPLY.prototype.rebase_functions = [
         var ret = clone(conflictless);
         if (!(key in conflictless.document))
           // The key being modified isn't present yet.
-          ret.document = exports.MISSING;
+          ret.document = MISSING;
         else ret.document = conflictless.document[key];
         return ret;
       }
@@ -248,17 +252,17 @@ exports.APPLY.prototype.rebase_functions = [
       }
 
       return [
-        new exports.APPLY(new_ops_left).simplify(),
-        new exports.APPLY(new_ops_right).simplify(),
+        new APPLY(new_ops_left).simplify(),
+        new APPLY(new_ops_right).simplify(),
       ];
     },
   ],
 ];
 
-exports.APPLY.prototype.drilldown = function (index_or_key) {
+APPLY.prototype.drilldown = function (index_or_key) {
   if (typeof index_or_key == 'string' && index_or_key in this.ops)
     return this.ops[index_or_key];
-  return new values.NO_OP();
+  return new NO_OP();
 };
 
 exports.createRandomOp = function (doc, context) {
@@ -268,16 +272,13 @@ exports.createRandomOp = function (doc, context) {
 
   // Add a random key with a random value.
   ops.push(function () {
-    return new exports.PUT(
-      'k' + Math.floor(1000 * Math.random()),
-      jot.createRandomValue(),
-    );
+    return new PUT('k' + Math.floor(1000 * Math.random()), createRandomValue());
   });
 
   // Apply random operations to individual keys.
   Object.keys(doc).forEach(function (key) {
     ops.push(function () {
-      return jot.createRandomOp(doc[key], 'object');
+      return createRandomOp(doc[key], 'object');
     });
   });
 

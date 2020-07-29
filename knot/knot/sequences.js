@@ -110,7 +110,7 @@ function map_index(pos, move_op) {
 
 exports.module_name = 'sequences'; // for serialization/deserialization
 
-exports.PATCH = function () {
+export function PATCH() {
   /* An operation that replaces a subrange of the sequence with new elements. */
   if (arguments[0] === '__hmm__') return; // used for subclassing
   if (arguments.length != 1) throw new Error('Invaid Argument');
@@ -146,15 +146,15 @@ exports.PATCH = function () {
   });
 
   Object.freeze(this);
-};
-exports.PATCH.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(exports.PATCH, exports, 'PATCH');
+}
+PATCH.prototype = Object.create(jot.Operation.prototype); // inherit
+jot.add_op(PATCH, exports, 'PATCH');
 
 // shortcuts
 
-exports.SPLICE = function (pos, length, value) {
+export function SPLICE(pos, length, value) {
   // value.slice(0,0) is a shorthand for constructing an empty string or empty list, generically
-  exports.PATCH.apply(this, [
+  PATCH.apply(this, [
     [
       {
         offset: pos,
@@ -163,10 +163,10 @@ exports.SPLICE = function (pos, length, value) {
       },
     ],
   ]);
-};
-exports.SPLICE.prototype = new exports.PATCH('__hmm__'); // inherit prototype
+}
+SPLICE.prototype = new PATCH('__hmm__'); // inherit prototype
 
-exports.ATINDEX = function () {
+export function ATINDEX() {
   var indexes;
   var op_map;
   if (arguments.length == 1) {
@@ -195,30 +195,30 @@ exports.ATINDEX = function () {
     hunks.push({
       offset: index - offset,
       length: 1,
-      op: new exports.MAP(op_map[index]),
+      op: new MAP(op_map[index]),
     });
     offset = index + 1;
   });
-  exports.PATCH.apply(this, [hunks]);
-};
-exports.ATINDEX.prototype = new exports.PATCH('__hmm__'); // inherit prototype
+  PATCH.apply(this, [hunks]);
+}
+ATINDEX.prototype = new PATCH('__hmm__'); // inherit prototype
 
-exports.MAP = function (op) {
+export function MAP(op) {
   if (op == null) throw new Error('Invalid Argument');
   this.op = op;
   Object.freeze(this);
-};
-exports.MAP.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(exports.MAP, exports, 'MAP');
+}
+MAP.prototype = Object.create(jot.Operation.prototype); // inherit
+jot.add_op(MAP, exports, 'MAP');
 
 //////////////////////////////////////////////////////////////////////////////
 
-exports.PATCH.prototype.inspect = function (depth) {
+PATCH.prototype.inspect = function (depth) {
   return util.format(
     '<PATCH%s>',
     this.hunks
       .map(function (hunk) {
-        if (hunk.length == 1 && hunk.op instanceof exports.MAP)
+        if (hunk.length == 1 && hunk.op instanceof MAP)
           // special format
           return util.format(
             ' +%d %s',
@@ -239,12 +239,12 @@ exports.PATCH.prototype.inspect = function (depth) {
   );
 };
 
-exports.PATCH.prototype.visit = function (visitor) {
+PATCH.prototype.visit = function (visitor) {
   // A simple visitor paradigm. Replace this operation instance itself
   // and any operation within it with the value returned by calling
   // visitor on itself, or if the visitor returns anything falsey
   // (probably undefined) then return the operation unchanged.
-  var ret = new exports.PATCH(
+  var ret = new PATCH(
     this.hunks.map(function (hunk) {
       var ret = clone(hunk);
       ret.op = ret.op.visit(visitor);
@@ -254,7 +254,7 @@ exports.PATCH.prototype.visit = function (visitor) {
   return visitor(ret) || ret;
 };
 
-exports.PATCH.prototype.internalToJSON = function (json, protocol_version) {
+PATCH.prototype.internalToJSON = function (json, protocol_version) {
   json.hunks = this.hunks.map(function (hunk) {
     var ret = clone(hunk);
     ret.op = ret.op.toJSON(undefined, protocol_version);
@@ -262,16 +262,16 @@ exports.PATCH.prototype.internalToJSON = function (json, protocol_version) {
   });
 };
 
-exports.PATCH.internalFromJSON = function (json, protocol_version, op_map) {
+PATCH.internalFromJSON = function (json, protocol_version, op_map) {
   var hunks = json.hunks.map(function (hunk) {
     var ret = clone(hunk);
     ret.op = jot.opFromJSON(hunk.op, protocol_version, op_map);
     return ret;
   });
-  return new exports.PATCH(hunks);
+  return new PATCH(hunks);
 };
 
-exports.PATCH.prototype.apply = function (document) {
+PATCH.prototype.apply = function (document) {
   /* Applies the operation to a document. Returns a new sequence that is
 		 the same type as document but with the hunks applied. */
 
@@ -306,7 +306,7 @@ exports.PATCH.prototype.apply = function (document) {
   return ret;
 };
 
-exports.PATCH.prototype.simplify = function () {
+PATCH.prototype.simplify = function () {
   /* Returns a new atomic operation that is a simpler version
 		 of this operation.*/
 
@@ -352,11 +352,10 @@ exports.PATCH.prototype.simplify = function () {
       // a SET) should be a string or an array.
       if (
         (hunks[hunks.length - 1].op instanceof values.SET ||
-          (hunks[hunks.length - 1].op instanceof exports.MAP &&
+          (hunks[hunks.length - 1].op instanceof MAP &&
             hunks[hunks.length - 1].op.op instanceof values.SET)) &&
         (hunk.op instanceof values.SET ||
-          (hunk.op instanceof exports.MAP &&
-            hunk.op.op instanceof values.SET)) &&
+          (hunk.op instanceof MAP && hunk.op.op instanceof values.SET)) &&
         doctype != null
       ) {
         function get_value(hunk) {
@@ -401,10 +400,10 @@ exports.PATCH.prototype.simplify = function () {
   this.hunks.forEach(handle_hunk);
   if (hunks.length == 0) return new values.NO_OP();
 
-  return new exports.PATCH(hunks);
+  return new PATCH(hunks);
 };
 
-exports.PATCH.prototype.drilldown = function (index_or_key) {
+PATCH.prototype.drilldown = function (index_or_key) {
   if (!Number.isInteger(index_or_key) || index_or_key < 0)
     return new values.NO_OP();
   var index = 0;
@@ -418,13 +417,13 @@ exports.PATCH.prototype.drilldown = function (index_or_key) {
   return ret ? ret : new values.NO_OP();
 };
 
-exports.PATCH.prototype.inverse = function (document) {
+PATCH.prototype.inverse = function (document) {
   /* Returns a new atomic operation that is the inverse of this operation,
 	   given the state of the document before this operation applies.
 	   The inverse simply inverts the operations on the hunks, but the
 	   lengths have to be fixed. */
   var offset = 0;
-  return new exports.PATCH(
+  return new PATCH(
     this.hunks.map(function (hunk) {
       var newhunk = {
         offset: hunk.offset,
@@ -530,7 +529,7 @@ function compose_patches(a, b) {
         // If a starts before b, wrap b_op in a PATCH operation
         // so that they can be considered to start at the same
         // location.
-        b_op = new exports.PATCH([
+        b_op = new PATCH([
           { offset: dx_start, length: b_state.hunks[0].length, op: b_op },
         ]);
       }
@@ -541,7 +540,7 @@ function compose_patches(a, b) {
         !ab &&
         dx_start == 0 &&
         dx_end == 0 &&
-        b_op instanceof exports.MAP &&
+        b_op instanceof MAP &&
         b_op.op instanceof values.SET
       )
         ab = b_op;
@@ -654,16 +653,16 @@ function compose_patches(a, b) {
     return null;
   }
 
-  return new exports.PATCH(hunks).simplify();
+  return new PATCH(hunks).simplify();
 }
 
-exports.PATCH.prototype.atomic_compose = function (other) {
+PATCH.prototype.atomic_compose = function (other) {
   /* Creates a new atomic operation that has the same result as this
 		 and other applied in sequence (this first, other after). Returns
 		 null if no atomic operation is possible. */
 
   // a PATCH composes with a PATCH
-  if (other instanceof exports.PATCH) return compose_patches(this, other);
+  if (other instanceof PATCH) return compose_patches(this, other);
 
   // No composition possible.
   return null;
@@ -926,17 +925,17 @@ function rebase_patches(a, b, conflictless) {
   }
 
   return [
-    new exports.PATCH(a_state.new_hunks).simplify(),
-    new exports.PATCH(b_state.new_hunks).simplify(),
+    new PATCH(a_state.new_hunks).simplify(),
+    new PATCH(b_state.new_hunks).simplify(),
   ];
 }
 
-exports.PATCH.prototype.rebase_functions = [
+PATCH.prototype.rebase_functions = [
   /* Transforms this operation so that it can be composed *after* the other
 		 operation to yield the same logical effect. Returns null on conflict. */
 
   [
-    exports.PATCH,
+    PATCH,
     function (other, conflictless) {
       // Return the new operations.
       return rebase_patches(this, other, conflictless);
@@ -944,7 +943,7 @@ exports.PATCH.prototype.rebase_functions = [
   ],
 ];
 
-exports.PATCH.prototype.get_length_change = function (old_length) {
+PATCH.prototype.get_length_change = function (old_length) {
   // Support routine for PATCH that returns the change in
   // length to a sequence if this operation is applied to it.
   var dlen = 0;
@@ -956,28 +955,28 @@ exports.PATCH.prototype.get_length_change = function (old_length) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-exports.MAP.prototype.inspect = function (depth) {
+MAP.prototype.inspect = function (depth) {
   return util.format('<MAP %s>', this.op.inspect(depth - 1));
 };
 
-exports.MAP.prototype.visit = function (visitor) {
+MAP.prototype.visit = function (visitor) {
   // A simple visitor paradigm. Replace this operation instance itself
   // and any operation within it with the value returned by calling
   // visitor on itself, or if the visitor returns anything falsey
   // (probably undefined) then return the operation unchanged.
-  var ret = new exports.MAP(this.op.visit(visitor));
+  var ret = new MAP(this.op.visit(visitor));
   return visitor(ret) || ret;
 };
 
-exports.MAP.prototype.internalToJSON = function (json, protocol_version) {
+MAP.prototype.internalToJSON = function (json, protocol_version) {
   json.op = this.op.toJSON(undefined, protocol_version);
 };
 
-exports.MAP.internalFromJSON = function (json, protocol_version, op_map) {
-  return new exports.MAP(jot.opFromJSON(json.op, protocol_version, op_map));
+MAP.internalFromJSON = function (json, protocol_version, op_map) {
+  return new MAP(jot.opFromJSON(json.op, protocol_version, op_map));
 };
 
-exports.MAP.prototype.apply = function (document) {
+MAP.prototype.apply = function (document) {
   /* Applies the operation to a document. Returns a new sequence that is
 		 the same type as document but with the element modified. */
 
@@ -1005,7 +1004,7 @@ exports.MAP.prototype.apply = function (document) {
   return d;
 };
 
-exports.MAP.prototype.simplify = function () {
+MAP.prototype.simplify = function () {
   /* Returns a new atomic operation that is a simpler version
 		 of this operation.*/
   var op = this.op.simplify();
@@ -1013,17 +1012,16 @@ exports.MAP.prototype.simplify = function () {
   return this;
 };
 
-exports.MAP.prototype.drilldown = function (index_or_key) {
+MAP.prototype.drilldown = function (index_or_key) {
   if (!Number.isInteger(index_or_key) || index_or_key < 0) new values.NO_OP();
   return this.op;
 };
 
-exports.MAP.prototype.inverse = function (document) {
+MAP.prototype.inverse = function (document) {
   /* Returns a new atomic operation that is the inverse of this operation. */
 
   if (document.length == 0) return new exports.NO_OP();
-  if (document.length == 1)
-    return new exports.MAP(this.op.inverse(document[0]));
+  if (document.length == 1) return new MAP(this.op.inverse(document[0]));
 
   // Since the inverse depends on the value of the document and the
   // elements of document may not all be the same, we have to explode
@@ -1037,27 +1035,27 @@ exports.MAP.prototype.inverse = function (document) {
       op: this.op.inverse(element),
     });
   });
-  return new exports.PATCH(hunks);
+  return new PATCH(hunks);
 };
 
-exports.MAP.prototype.atomic_compose = function (other) {
+MAP.prototype.atomic_compose = function (other) {
   /* Creates a new atomic operation that has the same result as this
 		 and other applied in sequence (this first, other after). Returns
 		 null if no atomic operation is possible. */
 
   // two MAPs with atomically composable sub-operations
-  if (other instanceof exports.MAP) {
+  if (other instanceof MAP) {
     var op2 = this.op.atomic_compose(other.op);
-    if (op2) return new exports.MAP(op2);
+    if (op2) return new MAP(op2);
   }
 
   // No composition possible.
   return null;
 };
 
-exports.MAP.prototype.rebase_functions = [
+MAP.prototype.rebase_functions = [
   [
-    exports.MAP,
+    MAP,
     function (other, conflictless) {
       // Two MAPs. The rebase succeeds only if a rebase on the
       // inner operations succeeds.
@@ -1114,7 +1112,7 @@ exports.MAP.prototype.rebase_functions = [
           // the MAPs into PATCHes with individual hunks for each index,
           // and then rebase those.
           var _this = this;
-          opa = new exports.PATCH(
+          opa = new PATCH(
             conflictless.document.map(function (item) {
               return {
                 offset: 0,
@@ -1123,7 +1121,7 @@ exports.MAP.prototype.rebase_functions = [
               };
             }),
           );
-          opb = new exports.PATCH(
+          opb = new PATCH(
             conflictless.document.map(function (item) {
               return {
                 offset: 0,
@@ -1138,18 +1136,14 @@ exports.MAP.prototype.rebase_functions = [
 
       if (opa && opb)
         return [
-          opa instanceof values.NO_OP
-            ? new values.NO_OP()
-            : new exports.MAP(opa),
-          opb instanceof values.NO_OP
-            ? new values.NO_OP()
-            : new exports.MAP(opb),
+          opa instanceof values.NO_OP ? new values.NO_OP() : new MAP(opa),
+          opb instanceof values.NO_OP ? new values.NO_OP() : new MAP(opb),
         ];
     },
   ],
 
   [
-    exports.PATCH,
+    PATCH,
     function (other, conflictless) {
       // Rebase MAP and PATCH.
 
@@ -1166,7 +1160,7 @@ exports.MAP.prototype.rebase_functions = [
       var _this = this;
       var rebase_result;
       other.hunks.forEach(function (hunk) {
-        if (!(hunk.op instanceof exports.MAP)) {
+        if (!(hunk.op instanceof MAP)) {
           // Rebase is not possible. Flag that it is not possible.
           rebase_result = null;
           return;
@@ -1199,7 +1193,7 @@ exports.MAP.prototype.rebase_functions = [
         // Rebase was possible and the same for every operation.
         return [
           rebase_result[0],
-          new exports.PATCH(
+          new PATCH(
             other.hunks.map(function (hunk) {
               hunk = clone(hunk);
               hunk.op = rebase_result[1];
@@ -1223,7 +1217,7 @@ exports.MAP.prototype.rebase_functions = [
         // by defining PATCH.get_length_change, but not PATCH.decompose.
         // That seems to be enough.
         return rebase_patches(
-          new exports.PATCH([
+          new PATCH([
             { offset: 0, length: conflictless.document.length, op: this },
           ]),
           other,
@@ -1253,13 +1247,13 @@ exports.MAP.prototype.rebase_functions = [
   ],
 ];
 
-exports.MAP.prototype.get_length_change = function (old_length) {
+MAP.prototype.get_length_change = function (old_length) {
   // Support routine for PATCH that returns the change in
   // length to a sequence if this operation is applied to it.
   return 0;
 };
 
-exports.MAP.prototype.decompose = function (in_out, at_index) {
+MAP.prototype.decompose = function (in_out, at_index) {
   // Support routine for when this operation is used as a hunk's
   // op in sequences.PATCH (i.e. its document is a string or array
   // sub-sequence) that returns a decomposition of the operation
@@ -1321,7 +1315,7 @@ exports.createRandomOp = function (doc, context) {
       if (Math.random() < 0.25) break;
     }
 
-    return new exports.PATCH(hunks);
+    return new PATCH(hunks);
   });
 
   // Construct a MAP.
@@ -1348,7 +1342,7 @@ exports.createRandomOp = function (doc, context) {
         doc.forEach(function (item) {
           op.apply(item);
         });
-        return new exports.MAP(op);
+        return new MAP(op);
       } catch (e) {
         // It's invalid. Try again to find a valid operation
         // that can apply to all elements, looping indefinitely

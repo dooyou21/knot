@@ -19,7 +19,7 @@ import { ATINDEX } from './sequences';
 
 exports.module_name = 'copies'; // for serialization/deserialization
 
-exports.COPY = function (pathpairs) {
+export function COPY(pathpairs) {
   if (!Array.isArray(pathpairs)) throw new Error('argument must be a list');
   this.pathpairs = pathpairs.map(function (pathpair) {
     if (!Array.isArray(pathpair) || pathpair.length != 2)
@@ -43,9 +43,10 @@ exports.COPY = function (pathpairs) {
     }
   });
   Object.freeze(this);
-};
-exports.COPY.prototype = Object.create(Operation.prototype); // inherit
-add_op(exports.COPY, exports, 'COPY');
+}
+
+COPY.prototype = Object.create(Operation.prototype); // inherit
+add_op(COPY, exports, 'COPY');
 
 function serialize_pointer(jp) {
   return jp.path
@@ -55,7 +56,7 @@ function serialize_pointer(jp) {
     .join('');
 }
 
-exports.COPY.prototype.inspect = function (depth) {
+COPY.prototype.inspect = function (depth) {
   return util.format(
     '<COPY %s>',
     this.pathpairs
@@ -70,7 +71,7 @@ exports.COPY.prototype.inspect = function (depth) {
   );
 };
 
-exports.COPY.prototype.visit = function (visitor) {
+COPY.prototype.visit = function (visitor) {
   // A simple visitor paradigm. Replace this operation instance itself
   // and any operation within it with the value returned by calling
   // visitor on itself, or if the visitor returns anything falsey
@@ -78,17 +79,17 @@ exports.COPY.prototype.visit = function (visitor) {
   return visitor(this) || this;
 };
 
-exports.COPY.prototype.internalToJSON = function (json, protocol_version) {
+COPY.prototype.internalToJSON = function (json, protocol_version) {
   json.pathpairs = this.pathpairs.map(function (pathpair) {
     return [serialize_pointer(pathpair[0]), serialize_pointer(pathpair[1])];
   });
 };
 
-exports.COPY.internalFromJSON = function (json, protocol_version, op_map) {
-  return new exports.COPY(json.pathpairs);
+COPY.internalFromJSON = function (json, protocol_version, op_map) {
+  return new COPY(json.pathpairs);
 };
 
-exports.COPY.prototype.apply = function (document) {
+COPY.prototype.apply = function (document) {
   /* Applies the operation to a document.*/
   this.pathpairs.forEach(function (pathpair) {
     var val = pathpair[0].get(document);
@@ -97,7 +98,7 @@ exports.COPY.prototype.apply = function (document) {
   return document;
 };
 
-exports.COPY.prototype.simplify = function (aggressive) {
+COPY.prototype.simplify = function (aggressive) {
   // Simplifies the operation. Later targets in pathpairs overwrite
   // earlier ones at the same location or a descendant of the
   // location.
@@ -133,7 +134,7 @@ function wrap_op_in_path(jp, document, op) {
   return op;
 }
 
-exports.COPY.prototype.inverse = function (document) {
+COPY.prototype.inverse = function (document) {
   // Create a SET operation for every target.
   return new LIST(
     this.pathpairs.map(function (pathpair) {
@@ -146,17 +147,17 @@ exports.COPY.prototype.inverse = function (document) {
   );
 };
 
-exports.COPY.prototype.atomic_compose = function (other) {
+COPY.prototype.atomic_compose = function (other) {
   // Return a single COPY that combines the effect of this
   // and other. Concatenate the pathpairs lists, then
   // run simplify().
-  if (other instanceof exports.COPY)
-    return new exports.COPY(this.pathpairs.concat(other.pathpairs)).simplify();
+  if (other instanceof COPY)
+    return new COPY(this.pathpairs.concat(other.pathpairs)).simplify();
 };
 
 exports.rebase = function (base, ops, conflictless, debug) {};
 
-exports.COPY.prototype.clone_operation = function (op, document) {
+COPY.prototype.clone_operation = function (op, document) {
   // Return a list of operations that includes op and
   // also for any way that op affects a copied path,
   // then an identical operation at the target path.
@@ -169,7 +170,7 @@ exports.COPY.prototype.clone_operation = function (op, document) {
   return new LIST(ret).simplify();
 };
 
-exports.COPY.prototype.drilldown = function (index_or_key) {
+COPY.prototype.drilldown = function (index_or_key) {
   // This method is supposed to return an operation that
   // has the same effect as this but is relative to index_or_key.
   // Can we do that? If a target is at or in index_or_key,
@@ -220,5 +221,5 @@ exports.createRandomOp = function (doc, context) {
     if (pp[0] != pp[1]) pathpairs.push(pp);
     if (Math.random() < 0.5) break;
   }
-  return new exports.COPY(pathpairs);
+  return new COPY(pathpairs);
 };
