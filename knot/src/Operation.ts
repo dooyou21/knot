@@ -13,7 +13,7 @@ export abstract class Operation {
   
   abstract internalToJSON(first, second);
   abstract atomic_compose(other);
-  abstract inspect();
+  abstract inspect(depth?);
   
   isNoOp() {
     return this instanceof NO_OP;
