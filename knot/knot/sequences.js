@@ -47,7 +47,7 @@
 			 PATCH([{
 				 offset: pos,
 				 length: length,
-				 op: new values.SET(value)
+				 op: new SET(value)
 				 }])
 			 
 			 i.e. replace elements with other elements
@@ -77,8 +77,10 @@ import deepEqual from 'lodash/isEqual';
 import clone from 'lodash/clone';
 
 var jot = require('./index.js');
-var values = require('./values.js');
-var LIST = require('./lists.js').LIST;
+import { Operation, add_op, opFromJSON } from './index';
+import { SET } from './values';
+import { LIST } from './lists';
+import { NO_OP, createRandomOp } from './values';
 
 // utilities
 
@@ -128,7 +130,7 @@ export function PATCH() {
       throw new Error('Invalid Argument (hunk length is not a number)');
     if (hunk.length < 0)
       throw new Error('Invalid Argument (hunk length is negative)');
-    if (!(hunk.op instanceof jot.Operation))
+    if (!(hunk.op instanceof Operation))
       throw new Error('Invalid Argument (hunk operation is not an operation)');
     if (typeof hunk.op.get_length_change != 'function')
       throw new Error(
@@ -147,8 +149,8 @@ export function PATCH() {
 
   Object.freeze(this);
 }
-PATCH.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(PATCH, exports, 'PATCH');
+PATCH.prototype = Object.create(Operation.prototype); // inherit
+add_op(PATCH, exports, 'PATCH');
 
 // shortcuts
 
@@ -159,7 +161,7 @@ export function SPLICE(pos, length, value) {
       {
         offset: pos,
         length: length,
-        op: new values.SET(value),
+        op: new SET(value),
       },
     ],
   ]);
@@ -208,8 +210,8 @@ export function MAP(op) {
   this.op = op;
   Object.freeze(this);
 }
-MAP.prototype = Object.create(jot.Operation.prototype); // inherit
-jot.add_op(MAP, exports, 'MAP');
+MAP.prototype = Object.create(Operation.prototype); // inherit
+add_op(MAP, exports, 'MAP');
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -230,7 +232,7 @@ PATCH.prototype.inspect = function (depth) {
           ' +%dx%d %s',
           hunk.offset,
           hunk.length,
-          hunk.op instanceof values.SET
+          hunk.op instanceof SET
             ? util.format('%j', hunk.op.value)
             : hunk.op.inspect(depth - 1),
         );
@@ -265,7 +267,7 @@ PATCH.prototype.internalToJSON = function (json, protocol_version) {
 PATCH.internalFromJSON = function (json, protocol_version, op_map) {
   var hunks = json.hunks.map(function (hunk) {
     var ret = clone(hunk);
-    ret.op = jot.opFromJSON(hunk.op, protocol_version, op_map);
+    ret.op = opFromJSON(hunk.op, protocol_version, op_map);
     return ret;
   });
   return new PATCH(hunks);
@@ -318,7 +320,7 @@ PATCH.prototype.simplify = function () {
   // only has sub-operations where we can't tell, like a MAP.
   var doctype = null;
   this.hunks.forEach(function (hunk) {
-    if (hunk.op instanceof values.SET) {
+    if (hunk.op instanceof SET) {
       if (typeof hunk.op.value == 'string') doctype = 'string';
       else if (Array.isArray(hunk.op.value)) doctype = 'array';
     }
@@ -351,15 +353,15 @@ PATCH.prototype.simplify = function () {
       // we wouldn't know whether the combined value (in
       // a SET) should be a string or an array.
       if (
-        (hunks[hunks.length - 1].op instanceof values.SET ||
+        (hunks[hunks.length - 1].op instanceof SET ||
           (hunks[hunks.length - 1].op instanceof MAP &&
-            hunks[hunks.length - 1].op.op instanceof values.SET)) &&
-        (hunk.op instanceof values.SET ||
-          (hunk.op instanceof MAP && hunk.op.op instanceof values.SET)) &&
+            hunks[hunks.length - 1].op.op instanceof SET)) &&
+        (hunk.op instanceof SET ||
+          (hunk.op instanceof MAP && hunk.op.op instanceof SET)) &&
         doctype != null
       ) {
         function get_value(hunk) {
-          if (hunk.op instanceof values.SET) {
+          if (hunk.op instanceof SET) {
             // The value is just the SET's value.
             return hunk.op.value;
           } else {
@@ -379,7 +381,7 @@ PATCH.prototype.simplify = function () {
         hunks[hunks.length - 1] = {
           offset: hunks[hunks.length - 1].offset,
           length: hunks[hunks.length - 1].length + hunk.length,
-          op: new values.SET(
+          op: new SET(
             concat2(get_value(hunks[hunks.length - 1]), get_value(hunk)),
           ),
         };
@@ -398,14 +400,13 @@ PATCH.prototype.simplify = function () {
   }
 
   this.hunks.forEach(handle_hunk);
-  if (hunks.length == 0) return new values.NO_OP();
+  if (hunks.length == 0) return new NO_OP();
 
   return new PATCH(hunks);
 };
 
 PATCH.prototype.drilldown = function (index_or_key) {
-  if (!Number.isInteger(index_or_key) || index_or_key < 0)
-    return new values.NO_OP();
+  if (!Number.isInteger(index_or_key) || index_or_key < 0) return new NO_OP();
   var index = 0;
   var ret = null;
   this.hunks.forEach(function (hunk) {
@@ -414,7 +415,7 @@ PATCH.prototype.drilldown = function (index_or_key) {
       ret = hunk.op.drilldown(index_or_key - index);
     index += hunk.length;
   });
-  return ret ? ret : new values.NO_OP();
+  return ret ? ret : new NO_OP();
 };
 
 PATCH.prototype.inverse = function (document) {
@@ -541,7 +542,7 @@ function compose_patches(a, b) {
         dx_start == 0 &&
         dx_end == 0 &&
         b_op instanceof MAP &&
-        b_op.op instanceof values.SET
+        b_op.op instanceof SET
       )
         ab = b_op;
 
@@ -630,7 +631,7 @@ function compose_patches(a, b) {
     // lengths.
     if (dx_end > 0) {
       // 'b' wholly encompasses 'a'.
-      if (b_state.hunks[0].op instanceof values.SET) {
+      if (b_state.hunks[0].op instanceof SET) {
         // 'b' is replacing everything 'a' touched with
         // new elements, so the changes in 'a' can be
         // dropped. But b's length has to be updated
@@ -973,7 +974,7 @@ MAP.prototype.internalToJSON = function (json, protocol_version) {
 };
 
 MAP.internalFromJSON = function (json, protocol_version, op_map) {
-  return new MAP(jot.opFromJSON(json.op, protocol_version, op_map));
+  return new MAP(opFromJSON(json.op, protocol_version, op_map));
 };
 
 MAP.prototype.apply = function (document) {
@@ -1008,12 +1009,12 @@ MAP.prototype.simplify = function () {
   /* Returns a new atomic operation that is a simpler version
 		 of this operation.*/
   var op = this.op.simplify();
-  if (op instanceof values.NO_OP) return new values.NO_OP();
+  if (op instanceof NO_OP) return new NO_OP();
   return this;
 };
 
 MAP.prototype.drilldown = function (index_or_key) {
-  if (!Number.isInteger(index_or_key) || index_or_key < 0) new values.NO_OP();
+  if (!Number.isInteger(index_or_key) || index_or_key < 0) new NO_OP();
   return this.op;
 };
 
@@ -1081,7 +1082,7 @@ MAP.prototype.rebase_functions = [
         // If the prior document state is an empty array, then
         // we know these operations are NO_OPs anyway.
       } else if (conflictless.document.length == 0) {
-        return [new jot.NO_OP(), new jot.NO_OP()];
+        return [new NO_OP(), new NO_OP()];
 
         // The prior document state is an array of more than one
         // element. In order to pass the prior document state into
@@ -1136,8 +1137,8 @@ MAP.prototype.rebase_functions = [
 
       if (opa && opb)
         return [
-          opa instanceof values.NO_OP ? new values.NO_OP() : new MAP(opa),
-          opb instanceof values.NO_OP ? new values.NO_OP() : new MAP(opb),
+          opa instanceof NO_OP ? new NO_OP() : new MAP(opa),
+          opb instanceof NO_OP ? new NO_OP() : new MAP(opb),
         ];
     },
   ],
@@ -1300,7 +1301,7 @@ exports.createRandomOp = function (doc, context) {
 
       // Choose an inner operation. Only ops in values can be used
       // because ops within PATCH must support get_length_change.
-      var op = values.createRandomOp(old_value, context);
+      var op = createRandomOp(old_value, context);
 
       // Push the hunk.
       hunks.push({
@@ -1334,7 +1335,7 @@ exports.createRandomOp = function (doc, context) {
       }
 
       // Construct a random operation.
-      var op = values.createRandomOp(random_elem, context + '-elem');
+      var op = createRandomOp(random_elem, context + '-elem');
 
       // Test that it is valid on all elements of doc.
       try {
