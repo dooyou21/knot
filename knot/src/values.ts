@@ -57,7 +57,7 @@
 	*/
 
 import util from 'util';
-import deepEqual from 'lodash/isEqual';
+import { isEqual as deepEqual } from 'lodash';
 import { add_op, Operation, cmp, type_name, createRandomValue } from './index';
 import { MISSING } from './objects';
 
@@ -159,7 +159,7 @@ NO_OP.prototype.simplify = function () {
 };
 
 NO_OP.prototype.drilldown = function (index_or_key) {
-  return new values.NO_OP();
+  return new NO_OP();
 };
 
 NO_OP.prototype.inverse = function (document) {
@@ -289,8 +289,7 @@ SET.prototype.rebase_functions = [
       // applied second (the one being rebased) becomes a no-op. Since the
       // two parts of the return value are for each rebased against the
       // other, both are returned as no-ops.
-      if (deepEqual(this.value, other.value, { strict: true }))
-        return [new NO_OP(), new NO_OP()];
+      if (deepEqual(this.value, other.value)) return [new NO_OP(), new NO_OP()];
 
       // If they set the document to different values and conflictless is
       // true, then we clobber the one whose value has a lower sort order.
@@ -399,7 +398,7 @@ MATH.prototype.apply = function (document) {
   } else if (typeof document == 'boolean') {
     if (this.operator == 'and') return document && this.operand;
     if (this.operator == 'or') return document || this.operand;
-    if (this.operator == 'xor') return !!(document ^ this.operand); // convert arithmetic result to boolean
+    if (this.operator == 'xor') return !!(Number(document) ^ this.operand); // convert arithmetic result to boolean
     if (this.operator == 'not') return !document;
     throw new Error(
       'MATH operator ' + this.operator + ' does not apply to boolean values.',
@@ -450,7 +449,7 @@ MATH.prototype.inverse = function (document) {
   if (this.operator == 'not') return this; // is its own inverse
 };
 
-MATH.prototype.atomic_compose = function (other) {
+MATH.prototype.atomic_compose = function (other: { operator; operand }) {
   /* Creates a new atomic operation that has the same result as this
 	   and other applied in sequence (this first, other after). Returns
 	   null if no atomic operation is possible. */
@@ -601,6 +600,16 @@ MATH.prototype.rebase_functions = [
   ],
 ];
 
+function concat2(item1, item2) {
+  if (item1 instanceof String) return item1 + item2;
+  return item1.concat(item2);
+}
+
+function concat3(item1, item2, item3) {
+  if (item1 instanceof String) return item1 + item2 + item3;
+  return item1.concat(item2).concat(item3);
+}
+
 export const createRandomOp = function (doc, context) {
   // Create a random operation that could apply to doc.
   // Choose uniformly across various options depending on
@@ -685,15 +694,6 @@ export const createRandomOp = function (doc, context) {
 
     if (doc.length > 0) {
       // expand by copying existing elements from document
-
-      function concat2(item1, item2) {
-        if (item1 instanceof String) return item1 + item2;
-        return item1.concat(item2);
-      }
-      function concat3(item1, item2, item3) {
-        if (item1 instanceof String) return item1 + item2 + item3;
-        return item1.concat(item2).concat(item3);
-      }
 
       // expand by elements at start
       ops.push(function () {

@@ -14,11 +14,13 @@ import { diff } from './diff';
 
 function keys(obj) {
   // Get all of the own-keys of obj including string keys and symbols.
-  return Object.keys(obj).concat(Object.getOwnPropertySymbols(obj));
+  let keys;
+  keys = Object.keys(obj);
+
+  return keys.concat(Object.getOwnPropertySymbols(obj));
 }
 
-function node_name_str(node) {
-  if (typeof node === 'Symbol' && node.description) return node.description;
+function node_name_str(node: any) {
   return node.toString();
 }
 
@@ -232,7 +234,11 @@ function lowest_common_ancestors(a, b, graph) {
 }
 
 export class Revision {
-  constructor(ops, parents, document) {
+  ops: any;
+  parents: any;
+  document: any;
+  id: any;
+  constructor(ops, parents, document, someString: any) {
     this.ops = ops;
     this.parents = parents || [];
     this.document = document;
@@ -253,6 +259,11 @@ export class Revision {
 }
 
 export class Document {
+  name: any;
+  history: any;
+  commit_count: any;
+  branch_count: any;
+
   constructor(name) {
     this.name = name || '';
     this.history = [new Revision(null, null, null, 'singularity')];

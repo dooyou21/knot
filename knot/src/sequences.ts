@@ -73,8 +73,8 @@
 	 */
 
 import util from 'util';
-import deepEqual from 'lodash/isEqual';
-import clone from 'lodash/clone';
+import { isEqual as deepEqual } from 'lodash';
+import { clone } from 'lodash';
 
 var jot = require('./index.js');
 import { Operation, add_op, opFromJSON } from './index';
@@ -112,7 +112,7 @@ function map_index(pos, move_op) {
 
 exports.module_name = 'sequences'; // for serialization/deserialization
 
-export function PATCH() {
+export function PATCH(var1: any) {
   /* An operation that replaces a subrange of the sequence with new elements. */
   if (arguments[0] === '__hmm__') return; // used for subclassing
   if (arguments.length != 1) throw new Error('Invaid Argument');
@@ -168,7 +168,7 @@ export function SPLICE(pos, length, value) {
 }
 SPLICE.prototype = new PATCH('__hmm__'); // inherit prototype
 
-export function ATINDEX() {
+export function ATINDEX(var1: any, var2?: any) {
   var indexes;
   var op_map;
   if (arguments.length == 1) {
@@ -326,8 +326,27 @@ PATCH.prototype.simplify = function () {
     }
   });
 
-  // Form a new set of merged hunks.
+  function get_value(hunk, doctype) {
+    if (hunk.op instanceof SET) {
+      // The value is just the SET's value.
+      return hunk.op.value;
+    } else {
+      // The value is a sequence of the hunk's length
+      // where each element is the value of the inner
+      // SET's value.
+      let value = [];
+      for (var i = 0; i < hunk.length; i++) value.push(hunk.op.op.value);
 
+      // If the outer value is a string, reform it as
+      // a string.
+      if (doctype == 'string') {
+        return value.join('');
+      }
+      return value;
+    }
+  }
+
+  // Form a new set of merged hunks.
   var hunks = [];
   var doffset = 0;
 
@@ -360,29 +379,14 @@ PATCH.prototype.simplify = function () {
           (hunk.op instanceof MAP && hunk.op.op instanceof SET)) &&
         doctype != null
       ) {
-        function get_value(hunk) {
-          if (hunk.op instanceof SET) {
-            // The value is just the SET's value.
-            return hunk.op.value;
-          } else {
-            // The value is a sequence of the hunk's length
-            // where each element is the value of the inner
-            // SET's value.
-            var value = [];
-            for (var i = 0; i < hunk.length; i++) value.push(hunk.op.op.value);
-
-            // If the outer value is a string, reform it as
-            // a string.
-            if (doctype == 'string') value = value.join('');
-            return value;
-          }
-        }
-
         hunks[hunks.length - 1] = {
           offset: hunks[hunks.length - 1].offset,
           length: hunks[hunks.length - 1].length + hunk.length,
           op: new SET(
-            concat2(get_value(hunks[hunks.length - 1]), get_value(hunk)),
+            concat2(
+              get_value(hunks[hunks.length - 1], doctype),
+              get_value(hunk, doctype),
+            ),
           ),
         };
 
@@ -524,7 +528,8 @@ function compose_patches(a, b) {
       // Compose a's and b's suboperations using
       // atomic_compose. If the two hunks changed the exact same
       // elements, then we can compose the two operations directly.
-      var b_op = b_state.hunks[0].op;
+      let b_op: { op; get_length_change };
+      b_op = b_state.hunks[0].op;
       var dx = b_op.get_length_change(b_state.hunks[0].length);
       if (dx_start != 0 || dx_end != 0) {
         // If a starts before b, wrap b_op in a PATCH operation
@@ -711,8 +716,10 @@ function rebase_patches(a, b, conflictless) {
     };
   }
 
-  var a_state = make_state(a),
-    b_state = make_state(b);
+  let a_state: { empty; take; start; skip; end; old_hunks; new_hunks };
+  let b_state: { empty; take; start; end; old_hunks; new_hunks };
+
+  (a_state = make_state(a)), (b_state = make_state(b));
 
   while (!a_state.empty() || !b_state.empty()) {
     // Only operations in 'a' are remaining.
@@ -1027,7 +1034,8 @@ MAP.prototype.inverse = function (document) {
   // Since the inverse depends on the value of the document and the
   // elements of document may not all be the same, we have to explode
   // this out into individual operations.
-  var hunks = [];
+  var hunks;
+  hunks = [];
   if (typeof document == 'string') document = document.split(/.{0}/);
   document.forEach(function (element) {
     hunks.append({
@@ -1039,7 +1047,7 @@ MAP.prototype.inverse = function (document) {
   return new PATCH(hunks);
 };
 
-MAP.prototype.atomic_compose = function (other) {
+MAP.prototype.atomic_compose = function (other: { op }) {
   /* Creates a new atomic operation that has the same result as this
 		 and other applied in sequence (this first, other after). Returns
 		 null if no atomic operation is possible. */
@@ -1103,8 +1111,8 @@ MAP.prototype.rebase_functions = [
             opa = a;
             opb = b;
           } else {
-            if (!deepEqual(opa, a, { strict: true })) ok = false;
-            if (!deepEqual(opb, b, { strict: true })) ok = false;
+            if (!deepEqual(opa, a)) ok = false;
+            if (!deepEqual(opb, b)) ok = false;
           }
         }
 
@@ -1182,15 +1190,12 @@ MAP.prototype.rebase_functions = [
 
         // Check that it is equal to the last one. If not, flag.
         if (
-          !deepEqual(rebase_result[0], r[0], { strict: true }) ||
-          !deepEqual(rebase_result[1], r[1], { strict: true })
+          !deepEqual(rebase_result[0], r[0]) ||
+          !deepEqual(rebase_result[1], r[1])
         )
           rebase_result = null;
       });
-      if (
-        rebase_result != null &&
-        deepEqual(rebase_result[0], this, { strict: true })
-      ) {
+      if (rebase_result != null && deepEqual(rebase_result[0], this)) {
         // Rebase was possible and the same for every operation.
         return [
           rebase_result[0],

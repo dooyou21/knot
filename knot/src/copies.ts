@@ -19,28 +19,31 @@ import { ATINDEX } from './sequences';
 
 exports.module_name = 'copies'; // for serialization/deserialization
 
-export function COPY(pathpairs) {
+export function COPY(pathpairs: any) {
   if (!Array.isArray(pathpairs)) throw new Error('argument must be a list');
   this.pathpairs = pathpairs.map(function (pathpair) {
     if (!Array.isArray(pathpair) || pathpair.length != 2)
       throw new Error(
         'each element in pathpairs must be an array of two string elements',
       );
-    if (
-      pathpair[0] instanceof JSONPointer &&
-      pathpair[1] instanceof JSONPointer
-    ) {
-      // for internal calls only
-      return pathpair;
-    } else {
-      if (typeof pathpair[0] != 'string' || typeof pathpair[1] != 'string')
-        throw new Error(
-          'each element in pathpairs must be an array of two strings',
-        );
-      if (pathpair[0] == pathpair[1])
-        throw new Error("can't copy a path to itself");
-      return [new JSONPointer(pathpair[0]), new JSONPointer(pathpair[1])];
-    }
+
+    return pathpair;
+
+    // if (
+    //   pathpair[0] instanceof JSONPointer &&
+    //   pathpair[1] instanceof JSONPointer
+    // ) {
+    //   // for internal calls only
+    //   return pathpair;
+    // } else {
+    //   if (typeof pathpair[0] != 'string' || typeof pathpair[1] != 'string')
+    //     throw new Error(
+    //       'each element in pathpairs must be an array of two strings',
+    //     );
+    //   if (pathpair[0] == pathpair[1])
+    //     throw new Error("can't copy a path to itself");
+    //   return [new JSONPointer(pathpair[0]), new JSONPointer(pathpair[1])];
+    // }
   });
   Object.freeze(this);
 }
@@ -147,7 +150,7 @@ COPY.prototype.inverse = function (document) {
   );
 };
 
-COPY.prototype.atomic_compose = function (other) {
+COPY.prototype.atomic_compose = function (other: { pathpairs }) {
   // Return a single COPY that combines the effect of this
   // and other. Concatenate the pathpairs lists, then
   // run simplify().

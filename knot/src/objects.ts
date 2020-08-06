@@ -39,7 +39,6 @@
    */
 
 import util from 'util';
-import deepEqual from 'lodash/isEqual';
 import {
   add_op,
   Operation,
@@ -47,14 +46,14 @@ import {
   createRandomValue,
   opFromJSON,
 } from './index';
-import clone from 'lodash/clone';
+import { clone } from 'lodash';
 import { NO_OP, SET } from './values';
 
 //////////////////////////////////////////////////////////////////////////////
 
 exports.module_name = 'objects'; // for serialization/deserialization
 
-export function APPLY() {
+export function APPLY(var1?: any, var2?: any) {
   if (arguments.length == 1 && typeof arguments[0] == 'object') {
     // Dict form.
     this.ops = arguments[0];
@@ -82,7 +81,7 @@ export function PUT(key, value) {
 }
 PUT.prototype = Object.create(APPLY.prototype); // inherit prototype
 
-export function REM(key) {
+export function REM(key, val2?) {
   APPLY.apply(this, [key, new SET(MISSING)]);
 }
 REM.prototype = Object.create(APPLY.prototype); // inherit prototype
@@ -173,7 +172,7 @@ APPLY.prototype.inverse = function (document) {
   return new APPLY(new_ops);
 };
 
-APPLY.prototype.atomic_compose = function (other) {
+APPLY.prototype.atomic_compose = function (other: { ops }) {
   /* Creates a new atomic operation that has the same result as this
 	   and other applied in sequence (this first, other after). Returns
 	   null if no atomic operation is possible. */

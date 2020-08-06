@@ -7,7 +7,7 @@
 	*/
 
 import util from 'util';
-import clone from 'lodash/clone';
+import { clone } from 'lodash';
 
 import { Operation, add_op, opFromJSON, createRandomOp } from './index';
 import { NO_OP } from './values';
@@ -129,7 +129,7 @@ LIST.prototype.inverse = function (document) {
   return new LIST(new_ops);
 };
 
-LIST.prototype.atomic_compose = function (other) {
+LIST.prototype.atomic_compose = function (other: { ops }) {
   /* Returns a LIST operation that has the same result as this
 	   and other applied in sequence (this first, other after). */
 
@@ -150,7 +150,12 @@ LIST.prototype.atomic_compose = function (other) {
   return new LIST(new_ops);
 };
 
-export const rebase = function (base, ops, conflictless, debug) {
+export const rebase = function (
+  base: { ops; simplify },
+  ops: { ops; simplify },
+  conflictless,
+  debug,
+) {
   // Ensure the operations are simplified, since rebase
   // is much more expensive than simplified.
 
@@ -160,15 +165,19 @@ export const rebase = function (base, ops, conflictless, debug) {
   // Turn each argument into an array of operations.
   // If an argument is a LIST, unwrap it.
 
-  if (base instanceof LIST) base = base.ops;
-  else base = [base];
+  let newBase;
+  newBase = base;
+  if (base instanceof LIST) newBase = base.ops;
+  else newBase = [base];
 
-  if (ops instanceof LIST) ops = ops.ops;
-  else ops = [ops];
+  let newOps;
+  newOps = ops;
+  if (ops instanceof LIST) newOps = ops.ops;
+  else newOps = [ops];
 
   // Run the rebase algorithm.
 
-  var ret = rebase_array(base, ops, conflictless, debug);
+  var ret = rebase_array(newBase, newOps, conflictless, debug);
 
   // The rebase may have failed.
   if (ret == null) return null;
@@ -233,7 +242,8 @@ function rebase_array(base, ops, conflictless, debug) {
   if (ops.length == 1 && base.length == 1) {
     // This is the recursive base case: Rebasing a single operation against a single
     // operation. Wrap the result in an array.
-    var op = ops[0].rebase(base[0], conflictless, debug);
+    let op: { ops };
+    op = ops[0].rebase(base[0], conflictless, debug);
     if (!op) return null; // conflict
     if (op instanceof NO_OP) return [];
     if (op instanceof LIST) return op.ops;

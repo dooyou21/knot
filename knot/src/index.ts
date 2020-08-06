@@ -1,11 +1,10 @@
 /* Base functions for the operational transformation library. */
 
 import util from 'util';
-import clone from 'lodash/clone';
-
+import { clone } from 'lodash';
 // Must define this ahead of any imports below so that this constructor
 // is available to the operation classes.
-export const Operation = function () {};
+export const Operation = function (var1?, var2?) {};
 exports.Operation = Operation;
 export function add_op(constructor, module, opname) {
   // utility.
@@ -107,6 +106,13 @@ exports.Operation.prototype.toJSON = function (__key__, protocol_version) {
   return repr;
 };
 
+function extend_op_map(modules: any[]) {
+  return modules.reduce((acc, module) => {
+    for (var key in module.op_map)
+      acc[module.module_name][key] = module.op_map[key];
+  }, {});
+}
+
 export const opFromJSON = function (obj, protocol_version, op_map) {
   // Sanity check.
   if (typeof obj !== 'object') throw new Error('Not an operation.');
@@ -135,19 +141,7 @@ export const opFromJSON = function (obj, protocol_version, op_map) {
   // Create a default mapping from encoded types to constructors
   // allowing all operations to be deserialized.
   if (!op_map) {
-    op_map = {};
-
-    function extend_op_map(module) {
-      op_map[module.module_name] = {};
-      for (var key in module.op_map)
-        op_map[module.module_name][key] = module.op_map[key];
-    }
-
-    extend_op_map(values);
-    extend_op_map(sequences);
-    extend_op_map(objects);
-    extend_op_map(lists);
-    extend_op_map(copies);
+    op_map = extend_op_map([values, sequences, objects, lists, copies]);
   }
 
   // Get the operation class.
@@ -308,7 +302,7 @@ exports.Operation.prototype.rebase = function (other, conflictless, debug) {
   return null;
 };
 
-export const createRandomValue = function (depth) {
+export const createRandomValue = function (depth = 0) {
   var values = [];
 
   // null
@@ -327,21 +321,20 @@ export const createRandomValue = function (depth) {
   values.push(Math.random().toString(36).substring(7));
 
   // array (make nesting exponentially less likely at each level of recursion)
-  if (Math.random() < Math.exp(-(depth || 0))) {
+  if (Math.random() < Math.exp(-depth)) {
     var n = Math.floor(Math.exp(3 * Math.random())) - 1;
     var array = [];
-    while (array.length < n)
-      array.push(exports.createRandomValue((depth || 0) + 1));
+    while (array.length < n) array.push(exports.createRandomValue(depth + 1));
     values.push(array);
   }
 
   // object (make nesting exponentially less likely at each level of recursion)
-  if (Math.random() < Math.exp(-(depth || 0))) {
+  if (Math.random() < Math.exp(-depth)) {
     var n = Math.floor(Math.exp(2.5 * Math.random())) - 1;
     var obj = {};
     while (Object.keys(obj).length < n)
       obj[Math.random().toString(36).substring(7)] = exports.createRandomValue(
-        (depth || 0) + 1,
+        depth + 1,
       );
     values.push(obj);
   }

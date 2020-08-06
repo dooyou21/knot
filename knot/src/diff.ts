@@ -1,7 +1,7 @@
 // Construct JOT operations by performing a diff on
 // standard data types.
 
-import deepEqual from 'lodash/isEqual';
+import { isEqual as deepEqual } from 'lodash';
 import { NO_OP, SET } from './values';
 import { PUT, REM, APPLY } from './objects';
 import { LIST } from './lists';
@@ -46,7 +46,7 @@ function _diff(a, b, options) {
   // Return fast if the objects are equal. This is muuuuuch
   // faster than doing our stuff recursively.
 
-  if (deepEqual(a, b, { strict: true })) {
+  if (deepEqual(a, b)) {
     return {
       op: new NO_OP(),
       pct: 0.0,
@@ -70,7 +70,7 @@ function _diff(a, b, options) {
   };
 }
 
-export function diff(a, b, options) {
+export function diff(a, b, options?: any) {
   // Ensure options are defined.
   options = options || {};
 
@@ -236,7 +236,7 @@ function diff_arrays(a, b, options) {
         //console.log(op);
 
         // Increment counters.
-        var dd =
+        var ddPrev =
           JSON.stringify(
             hunk.ai.map(function (i) {
               return a[i];
@@ -247,7 +247,7 @@ function diff_arrays(a, b, options) {
               return b[i];
             }),
           );
-        dd = dd.length / 2;
+        const dd = ddPrev.length / 2;
         total_content += dd;
         changed_content += dd;
       } else {
@@ -330,7 +330,7 @@ function diff_objects(a, b, options) {
   pairs.sort(function (a, b) {
     return a.diff.pct * a.diff.size - b.diff.pct * b.diff.size;
   });
-  pairs.forEach(function (item) {
+  pairs.forEach(function (item: { a_key; b_key; diff }) {
     // Have we already generated an operation renaming
     // the key in a or renaming something to the key in b?
     // If so, this pair can't be used.
