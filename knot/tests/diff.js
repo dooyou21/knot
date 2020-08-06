@@ -1,39 +1,42 @@
 var test = require('tap').test;
-var jot = require('../knot')
-var diff = require("../knot/diff.js");
+var jot = require('../dist');
+var diff = require('../dist/diff.js');
 
 test('diff', function (t) {
+  function test(a, b, options) {
+    var op = diff.diff(a, b, options);
+    t.deepEqual(op.apply(a), b);
+    t.deepEqual(op.inverse(a).apply(b), a);
+  }
 
-	function test(a, b, options) {
-		var op = diff.diff(a, b, options);
-		t.deepEqual(op.apply(a), b);
-		t.deepEqual(op.inverse(a).apply(b), a);
-	}
+  // values (these just turn into SET operations)
 
-	// values (these just turn into SET operations)
+  test(5, {});
 
-	test(5, {});
+  // strings
 
-	// strings
+  test('This is a test.', 'That is not a test of string comparison.');
+  test('This is a test.', 'I know. This is a test.');
+  test('This is a test.', 'This is a test. Yes, I know.');
 
-	test("This is a test.", "That is not a test of string comparison.");
-	test("This is a test.", "I know. This is a test.");
-	test("This is a test.", "This is a test. Yes, I know.");
+  // arrays
 
-	// arrays
+  test([1, 2, 3], [1, 2, 3]);
+  test([1, 2, 3], [0.5, 1, 1.5, 2, 2.5, 3, 3.5]);
+  test([0.5, 1, 1.5, 1.75, 2, 2.5, 3, 3.5], [1, 2, 3]);
 
-	test([1, 2, 3], [1, 2, 3])
-	test([1, 2, 3], [0.5, 1, 1.5, 2, 2.5, 3, 3.5])
-	test([0.5, 1, 1.5, 1.75, 2, 2.5, 3, 3.5], [1, 2, 3])
+  // objects
 
-	// objects
+  test({ a: 'Hello!' }, { a: 'Goodbye!' });
+  test({ a: 'Hello!' }, { b: 'Hello!' });
 
-	test({ "a": "Hello!" }, { "a": "Goodbye!" });
-	test({ "a": "Hello!" }, { "b": "Hello!" });
+  // recursive
 
-	// recursive
+  test(
+    { a: ['Hello!', ['Goodbye!']] },
+    { b: ['Hola!', ['Adios!']] },
+    { words: true },
+  );
 
-	test({ "a": ["Hello!", ["Goodbye!"]] }, { "b": ["Hola!", ["Adios!"]] }, { words: true });
-
-	t.end();
+  t.end();
 });
