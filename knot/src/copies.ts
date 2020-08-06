@@ -28,7 +28,7 @@ export function COPY(pathpairs: any) {
       );
 
     return pathpair;
-
+    // FIXME: JSONPointer 어떻게 해결해야 하나?
     // if (
     //   pathpair[0] instanceof JSONPointer &&
     //   pathpair[1] instanceof JSONPointer
