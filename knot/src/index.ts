@@ -108,8 +108,13 @@ exports.Operation.prototype.toJSON = function (__key__, protocol_version) {
 
 function extend_op_map(modules: any[]) {
   return modules.reduce((acc, module) => {
+    if (!acc[module.module_name]) {
+      acc[module.module_name] = {};
+    }
     for (var key in module.op_map)
       acc[module.module_name][key] = module.op_map[key];
+
+    return acc;
   }, {});
 }
 

@@ -10,7 +10,7 @@
 	*/
 
 import util from 'util';
-import { JSONPointer } from 'jsonpatch';
+const JSONPointer = require('jsonpatch').JSONPointer;
 import { add_op, Operation } from './index';
 import { APPLY } from './objects';
 import { SET } from './values';
@@ -27,23 +27,22 @@ export function COPY(pathpairs: any) {
         'each element in pathpairs must be an array of two string elements',
       );
 
-    return pathpair;
     // FIXME: JSONPointer 어떻게 해결해야 하나?
-    // if (
-    //   pathpair[0] instanceof JSONPointer &&
-    //   pathpair[1] instanceof JSONPointer
-    // ) {
-    //   // for internal calls only
-    //   return pathpair;
-    // } else {
-    //   if (typeof pathpair[0] != 'string' || typeof pathpair[1] != 'string')
-    //     throw new Error(
-    //       'each element in pathpairs must be an array of two strings',
-    //     );
-    //   if (pathpair[0] == pathpair[1])
-    //     throw new Error("can't copy a path to itself");
-    //   return [new JSONPointer(pathpair[0]), new JSONPointer(pathpair[1])];
-    // }
+    if (
+      pathpair[0] instanceof JSONPointer &&
+      pathpair[1] instanceof JSONPointer
+    ) {
+      // for internal calls only
+      return pathpair;
+    } else {
+      if (typeof pathpair[0] != 'string' || typeof pathpair[1] != 'string')
+        throw new Error(
+          'each element in pathpairs must be an array of two strings',
+        );
+      if (pathpair[0] == pathpair[1])
+        throw new Error("can't copy a path to itself");
+      return [new JSONPointer(pathpair[0]), new JSONPointer(pathpair[1])];
+    }
   });
   Object.freeze(this);
 }
